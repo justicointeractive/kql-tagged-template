@@ -52,3 +52,17 @@ code --install-extension kql-tagged-template-0.0.1.vsix
 ```
 
 Then run **Developer: Reload Window**.
+
+## Releasing
+
+Create and push a semver tag to publish a GitHub Release with the packaged VSIX attached:
+
+```sh
+git tag v0.0.1
+git push origin v0.0.1
+```
+
+The release workflow validates the extension manifest and grammar JSON, packages the extension with `@vscode/vsce`, and uploads the generated `.vsix` to the GitHub Release.
+
+You can also run the **Release VSIX** workflow manually against an existing tag.
+
