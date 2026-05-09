@@ -1,0 +1,49 @@
+{
+  "name": "kql-tagged-template",
+  "displayName": "KQL Tagged Template Highlighting",
+  "description": "Syntax highlighting for Kusto/KQL tagged template literals in JavaScript and TypeScript.",
+  "version": "0.0.1",
+  "publisher": "justicointeractive",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/justicointeractive/kql-tagged-template"
+  },
+  "bugs": {
+    "url": "https://github.com/justicointeractive/kql-tagged-template/issues"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "kusto",
+    "kql",
+    "tagged template",
+    "typescript",
+    "javascript",
+    "syntax highlighting"
+  ],
+  "extensionDependencies": [
+    "rosshamish.kuskus-kusto-syntax-highlighting"
+  ],
+  "contributes": {
+    "grammars": [
+      {
+        "scopeName": "inline.es6-kql",
+        "path": "./syntaxes/es6-inline-kql.json",
+        "injectTo": [
+          "source.js",
+          "source.jsx",
+          "source.ts",
+          "source.tsx"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.kusto": "kusto"
+        }
+      }
+    ]
+  }
+}
