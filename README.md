@@ -55,14 +55,19 @@ Then run **Developer: Reload Window**.
 
 ## Releasing
 
-Create and push a semver tag to publish a GitHub Release with the packaged VSIX attached:
+Create and push a semver tag to publish a GitHub Release with the packaged VSIX attached and publish the same VSIX to the VS Code Marketplace:
 
 ```sh
 git tag v0.0.1
 git push origin v0.0.1
 ```
 
-The release workflow validates the extension manifest and grammar JSON, packages the extension with `@vscode/vsce`, and uploads the generated `.vsix` to the GitHub Release.
+The release workflow validates the extension manifest and grammar JSON, packages the extension with `@vscode/vsce`, uploads the generated `.vsix` to the GitHub Release, then publishes that package to the VS Code Marketplace.
+
+Marketplace publishing uses the `vsce` GitHub environment:
+
+- secret `PAT` — Visual Studio Marketplace personal access token
+- variable `PUBLISHER_ID` — expected Marketplace publisher ID; this must match `package.json`'s `publisher`
 
 You can also run the **Release VSIX** workflow manually against an existing tag.
 
