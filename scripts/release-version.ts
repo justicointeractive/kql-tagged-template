@@ -1,21 +1,26 @@
 #!/usr/bin/env node
-// @ts-check
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 
-/**
- * @typedef {object} Version
- * @property {string} value
- * @property {number} major
- * @property {number} minor
- * @property {number} patch
- */
+type Version = {
+  value: string;
+  major: number;
+  minor: number;
+  patch: number;
+};
+
+type PackageJson = {
+  version?: unknown;
+};
 
 const semverRe = /^v?(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
-/** @param {unknown} value @returns {Version | null} */
-function parseVersion(value) {
+function isVersion(value: Version | null): value is Version {
+  return value !== null;
+}
+
+function parseVersion(value: unknown): Version | null {
   const raw = String(value ?? '').trim();
   const match = raw.match(semverRe);
   if (!match) return null;
@@ -27,49 +32,42 @@ function parseVersion(value) {
   };
 }
 
-/** @param {Version} a @param {Version} b */
-function compareVersions(a, b) {
+function compareVersions(a: Version, b: Version): number {
   return a.major - b.major || a.minor - b.minor || a.patch - b.patch;
 }
 
-/** @param {string[]} args */
-function git(args) {
+function git(args: string[]): string {
   return execFileSync('git', args, { encoding: 'utf8' }).trim();
 }
 
-/** @param {string[]} args */
-function gitQuiet(args) {
+function gitQuiet(args: string[]): string {
   return execFileSync('git', args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
   }).trim();
 }
 
-/** @returns {Version | null} */
-function readPackageVersion() {
-  const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
+function readPackageVersion(): Version | null {
+  const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as PackageJson;
   return parseVersion(packageJson.version);
 }
 
-/** @returns {Version[]} */
-function semverTagsPointingAtHead() {
+function semverTagsPointingAtHead(): Version[] {
   return git(['tag', '--points-at', 'HEAD'])
     .split(/\n/)
     .map(parseVersion)
-    .filter((version) => version !== null)
+    .filter(isVersion)
     .sort(compareVersions);
 }
 
-/** @returns {Version[]} */
-function existingSemverTags() {
+function existingSemverTags(): Version[] {
   return git(['tag', '--list', 'v[0-9]*.[0-9]*.[0-9]*'])
     .split(/\n/)
     .map(parseVersion)
-    .filter((version) => version !== null);
+    .filter(isVersion);
 }
 
-/** @param {string} tag */
-function assertTagIsAvailableOrAtHead(tag) {
+function assertTagIsAvailableOrAtHead(tag: string): void {
   try {
     const taggedSha = gitQuiet(['rev-list', '-n', '1', tag]);
     const headSha = git(['rev-parse', 'HEAD']);
@@ -84,8 +82,7 @@ function assertTagIsAvailableOrAtHead(tag) {
   }
 }
 
-/** @param {Map<string, string>} outputs */
-function writeOutputs(outputs) {
+function writeOutputs(outputs: Map<string, string>): void {
   const outputFile = process.env.GITHUB_OUTPUT;
   const body = [...outputs].map(([key, value]) => `${key}=${value}`).join('\n') + '\n';
   if (outputFile) {
