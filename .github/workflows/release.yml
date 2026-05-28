@@ -2,13 +2,13 @@ name: Release VSIX
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches:
+      - main
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Existing tag to release, for example v0.0.1"
-        required: true
+      version:
+        description: "Version to release, for example 0.0.2. Leave empty to use/reuse the next patch version."
+        required: false
         type: string
 
 permissions:
@@ -19,32 +19,59 @@ jobs:
     name: Package and publish GitHub release
     runs-on: ubuntu-latest
 
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check release scripts
+        run: npm run typecheck
+
+      - name: Determine release version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: npm run release:version
+
+      - name: Set package version for VSIX
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: npm run release:set-package-version
 
       - name: Validate extension manifest
-        run: node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"
+        run: npm run validate:manifest
 
       - name: Validate grammar JSON
-        run: node -e "JSON.parse(require('fs').readFileSync('syntaxes/es6-inline-kql.json', 'utf8'))"
+        run: npm run validate:grammar
 
       - name: Package VSIX
-        run: npx --yes @vscode/vsce package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: npx --yes @vscode/vsce package --out "kql-tagged-template-${VERSION}.vsix"
 
-      - name: Create GitHub release
+      - name: Create GitHub release and tag
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           files: "*.vsix"
           generate_release_notes: true
+          fail_on_unmatched_files: true
+          overwrite_files: true
 
       - name: Upload packaged VSIX
         uses: actions/upload-artifact@v4
@@ -62,13 +89,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check release scripts
+        run: npm run typecheck
 
       - name: Download packaged VSIX
         uses: actions/download-artifact@v4
@@ -79,16 +111,7 @@ jobs:
       - name: Verify Marketplace publisher
         env:
           PUBLISHER_ID: ${{ vars.PUBLISHER_ID }}
-        run: |
-          test -n "$PUBLISHER_ID"
-          node - <<'NODE'
-          const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          const expected = process.env.PUBLISHER_ID;
-          if (pkg.publisher !== expected) {
-            throw new Error(`package.json publisher (${pkg.publisher}) does not match vsce environment PUBLISHER_ID (${expected})`);
-          }
-          NODE
+        run: npm run release:verify-publisher
 
       - name: Publish to VS Code Marketplace
         env:

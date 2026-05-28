@@ -45,5 +45,18 @@
         }
       }
     ]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "validate:manifest": "tsx scripts/validate-json-file.ts package.json",
+    "validate:grammar": "tsx scripts/validate-json-file.ts syntaxes/es6-inline-kql.json",
+    "release:version": "tsx scripts/release-version.ts",
+    "release:set-package-version": "tsx scripts/set-package-version.ts",
+    "release:verify-publisher": "tsx scripts/verify-publisher.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.2"
   }
 }

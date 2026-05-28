@@ -2,4 +2,8 @@
 .github/**
 .gitignore
 .vscode/**
+node_modules/**
+scripts/**
+tsconfig.json
+package-lock.json
 *.vsix
