@@ -63,7 +63,28 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: npx --yes @vscode/vsce package --out "kql-tagged-template-${VERSION}.vsix"
 
-      - name: Create GitHub release and tag
+      - name: Create release tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          head_sha="$(git rev-parse HEAD)"
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            tagged_sha="$(git rev-list -n 1 "${TAG}")"
+            if [ "${tagged_sha}" != "${head_sha}" ]; then
+              echo "::error::${TAG} already exists at ${tagged_sha}, not ${head_sha}"
+              exit 1
+            fi
+            echo "${TAG} already points at HEAD; reusing it."
+          else
+            git tag "${TAG}" "${head_sha}"
+            git push origin "refs/tags/${TAG}"
+          fi
+
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
