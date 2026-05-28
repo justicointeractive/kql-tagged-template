@@ -45,5 +45,17 @@
         }
       }
     ]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "validate:manifest": "node scripts/validate-json-file.mjs package.json",
+    "validate:grammar": "node scripts/validate-json-file.mjs syntaxes/es6-inline-kql.json",
+    "release:version": "node scripts/release-version.mjs",
+    "release:set-package-version": "node scripts/set-package-version.mjs",
+    "release:verify-publisher": "node scripts/verify-publisher.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "typescript": "^5.7.2"
   }
 }

@@ -55,7 +55,7 @@ Then run **Developer: Reload Window**.
 
 ## Releasing
 
-Every push to `main` runs the **Release VSIX** workflow and publishes a patch release. The workflow reuses a semver tag already pointing at the commit when rerun; otherwise it picks the next patch version after the highest existing `vX.Y.Z` tag, updates `package.json` in the runner for packaging, creates the GitHub Release and tag, and uploads the generated VSIX.
+Every push to `main` runs the **Release VSIX** workflow and publishes a patch release. The workflow type-checks the release helper scripts, reuses a semver tag already pointing at the commit when rerun, otherwise picks the next patch version after the highest existing `vX.Y.Z` tag, updates `package.json` in the runner for packaging, creates the GitHub Release and tag, and uploads the generated VSIX.
 
 The same workflow then publishes that packaged VSIX to the VS Code Marketplace, avoiding a nested tag-push workflow.
 
@@ -65,6 +65,4 @@ Marketplace publishing uses the `vsce` GitHub environment:
 
 - secret `PAT` — Visual Studio Marketplace personal access token
 - variable `PUBLISHER_ID` — expected Marketplace publisher ID; this must match `package.json`'s `publisher`
-
-You can also run the **Release VSIX** workflow manually against an existing tag.
 

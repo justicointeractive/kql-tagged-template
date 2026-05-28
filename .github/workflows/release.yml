@@ -33,96 +33,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check release scripts
+        run: npm run typecheck
 
       - name: Determine release version
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          git fetch --tags origin
-          node <<'NODE' >> "$GITHUB_OUTPUT"
-          const { execFileSync } = require('child_process');
-          const fs = require('fs');
-
-          const semverRe = /^v?(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-          const parse = (value) => {
-            const match = String(value || '').trim().match(semverRe);
-            if (!match) return null;
-            return {
-              value: String(value).trim().replace(/^v/, ''),
-              major: Number(match[1]),
-              minor: Number(match[2]),
-              patch: Number(match[3]),
-            };
-          };
-          const compare = (a, b) =>
-            a.major - b.major || a.minor - b.minor || a.patch - b.patch;
-
-          const input = parse(process.env.INPUT_VERSION);
-          let selected = input;
-
-          if (!selected) {
-            const tagsAtHead = execFileSync('git', ['tag', '--points-at', 'HEAD'], { encoding: 'utf8' })
-              .trim()
-              .split(/\n/)
-              .map(parse)
-              .filter(Boolean)
-              .sort(compare);
-
-            if (tagsAtHead.length > 0) {
-              selected = tagsAtHead[tagsAtHead.length - 1];
-            } else {
-              const packageVersion = parse(JSON.parse(fs.readFileSync('package.json', 'utf8')).version);
-              const tags = execFileSync('git', ['tag', '--list', 'v[0-9]*.[0-9]*.[0-9]*'], { encoding: 'utf8' })
-                .trim()
-                .split(/\n/)
-                .map(parse)
-                .filter(Boolean);
-              if (packageVersion) tags.push(packageVersion);
-              const latest = tags.sort(compare).at(-1) || { major: 0, minor: 0, patch: 0 };
-              selected = { major: latest.major, minor: latest.minor, patch: latest.patch + 1 };
-              selected.value = `${selected.major}.${selected.minor}.${selected.patch}`;
-            }
-          }
-
-          if (!selected) {
-            throw new Error(`Invalid version input: ${process.env.INPUT_VERSION}`);
-          }
-
-          const tag = `v${selected.value}`;
-          try {
-            const taggedSha = execFileSync('git', ['rev-list', '-n', '1', tag], {
-              encoding: 'utf8',
-              stdio: ['ignore', 'pipe', 'ignore'],
-            }).trim();
-            const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-            if (taggedSha !== headSha) {
-              throw new Error(`${tag} already exists at ${taggedSha}, not ${headSha}`);
-            }
-          } catch (error) {
-            if (error.status !== 128) throw error;
-          }
-
-          console.log(`version=${selected.value}`);
-          console.log(`tag=${tag}`);
-          NODE
+        run: npm run release:version
 
       - name: Set package version for VSIX
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          pkg.version = process.env.VERSION;
-          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          NODE
+        run: npm run release:set-package-version
 
       - name: Validate extension manifest
-        run: node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"
+        run: npm run validate:manifest
 
       - name: Validate grammar JSON
-        run: node -e "JSON.parse(require('fs').readFileSync('syntaxes/es6-inline-kql.json', 'utf8'))"
+        run: npm run validate:grammar
 
       - name: Package VSIX
         env:
@@ -160,6 +94,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check release scripts
+        run: npm run typecheck
 
       - name: Download packaged VSIX
         uses: actions/download-artifact@v4
@@ -170,16 +111,7 @@ jobs:
       - name: Verify Marketplace publisher
         env:
           PUBLISHER_ID: ${{ vars.PUBLISHER_ID }}
-        run: |
-          test -n "$PUBLISHER_ID"
-          node - <<'NODE'
-          const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          const expected = process.env.PUBLISHER_ID;
-          if (pkg.publisher !== expected) {
-            throw new Error(`package.json publisher (${pkg.publisher}) does not match vsce environment PUBLISHER_ID (${expected})`);
-          }
-          NODE
+        run: npm run release:verify-publisher
 
       - name: Publish to VS Code Marketplace
         env:
