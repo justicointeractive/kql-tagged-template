@@ -1,0 +1,96 @@
+name: Release VSIX
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release, for example v0.0.1"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package and publish GitHub release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate extension manifest
+        run: node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"
+
+      - name: Validate grammar JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('syntaxes/es6-inline-kql.json', 'utf8'))"
+
+      - name: Package VSIX
+        run: npx --yes @vscode/vsce package
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          files: "*.vsix"
+          generate_release_notes: true
+
+      - name: Upload packaged VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: "*.vsix"
+          if-no-files-found: error
+
+  marketplace:
+    name: Publish VS Code Marketplace
+    runs-on: ubuntu-latest
+    needs: release
+    environment: vsce
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download packaged VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: dist
+
+      - name: Verify Marketplace publisher
+        env:
+          PUBLISHER_ID: ${{ vars.PUBLISHER_ID }}
+        run: |
+          test -n "$PUBLISHER_ID"
+          node - <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const expected = process.env.PUBLISHER_ID;
+          if (pkg.publisher !== expected) {
+            throw new Error(`package.json publisher (${pkg.publisher}) does not match vsce environment PUBLISHER_ID (${expected})`);
+          }
+          NODE
+
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.PAT }}
+        run: npx --yes @vscode/vsce publish --packagePath dist/*.vsix -p "$VSCE_PAT"
