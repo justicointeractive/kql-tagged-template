@@ -55,11 +55,11 @@ Then run **Developer: Reload Window**.
 
 ## Releasing
 
-Merge a PR to `main` with `package.json`'s `version` bumped to the version you want to ship. The **Tag release from main** workflow creates and pushes the matching semver tag, for example `v0.0.2`.
+Every push to `main` runs the **Release VSIX** workflow and publishes a patch release. The workflow reuses a semver tag already pointing at the commit when rerun; otherwise it picks the next patch version after the highest existing `vX.Y.Z` tag, updates `package.json` in the runner for packaging, creates the GitHub Release and tag, and uploads the generated VSIX.
 
-That tag push starts the **Release VSIX** workflow, which validates the extension manifest and grammar JSON, packages the extension with `@vscode/vsce`, uploads the generated `.vsix` to the GitHub Release, then publishes that package to the VS Code Marketplace.
+The same workflow then publishes that packaged VSIX to the VS Code Marketplace, avoiding a nested tag-push workflow.
 
-If the matching tag already exists at a different commit, the tag workflow fails instead of moving the tag. Bump `package.json` before merging another release PR.
+You can also run **Release VSIX** manually with a specific version input, for example `0.0.2`. If the matching tag already exists at a different commit, the workflow fails instead of moving it.
 
 Marketplace publishing uses the `vsce` GitHub environment:
 
